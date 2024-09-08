@@ -4,11 +4,10 @@ from typing import Annotated, Optional
 
 import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+# from fastapi.security import OAuth2PasswordBearer 
 from infra.db import models
 from infra.db.database import get_db
 from jwt.exceptions import InvalidTokenError
-from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from utils.password import verify_password
@@ -19,22 +18,13 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_MINUTES = 1440  # 1 day
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-
-class Token(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    email: Optional[str] = None
+# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="user/signin")
 
 class AuthService:
     db: Session
-    def __init__(self):
-        self.db = get_db()
+    
+    def __init__(self, db: Session):
+        self.db = db
 
     def get_user_by_email(self, email: str):
         stmt = select(models.User).where(models.User.email == email)
@@ -42,7 +32,7 @@ class AuthService:
     
     def authenticate_user(self, email: str, password: str):
         user = self.get_user_by_email(email=email)
-        if user and verify_password(password, user['password']):
+        if user and verify_password(password, user.password):
             return user
         return False
 
@@ -67,34 +57,35 @@ class AuthService:
         encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
         return encoded_jwt
 
+auth_service = AuthService(get_db()) # type: ignore
 
-    async def get_current_user(self, token: Annotated[str, Depends(oauth2_scheme)]):
-        credentials_exception = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        except InvalidTokenError:
-            raise credentials_exception
-        email: str = payload.get("sub")
-        user = self.get_user_by_email(email=email)
-        if user is None:
-            raise credentials_exception
-        return user
+async def get_current_user(token): #: Annotated[str, Depends(oauth2_scheme)]):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except InvalidTokenError:
+        raise credentials_exception
+    email = payload.get("sub")
+    user = auth_service.get_user_by_email(email=email)
+    if user is None:
+        raise credentials_exception
+    return user
 
 
-    async def get_current_active_user(self, 
-        current_user: Annotated[models.User, Depends(get_current_user)],
-    ):
-        if not current_user.status:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
-        return current_user
-    
-    async def get_current_admin_user(self, 
-        current_user: Annotated[models.User, Depends(get_current_user)],
-    ):
-        if not current_user.profile.get("owner"):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not an owner")
-        return current_user
+async def get_current_active_user(
+    current_user: Annotated[models.User, Depends(get_current_user)],
+):
+    if not current_user.status:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user. Please Verify your details")
+    return current_user
+
+async def get_current_admin_user( 
+    current_user: Annotated[models.User, Depends(get_current_user)],
+):
+    if not current_user.profile.get("owner"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not an owner")
+    return current_user

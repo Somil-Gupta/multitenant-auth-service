@@ -4,3 +4,4 @@ __pycache__/
 postgres/*
 **.bin
 /backend/logs/*
+/backend/jupyter_notebook/*

@@ -16,8 +16,10 @@ pyaml-env = "^1.2.1"
 psycopg2-binary = "^2.9.9"
 uvicorn = "^0.30.6"
 pyjwt = "^2.9.0"
-bcrypt = "^4.2.0"
-passlib = {extras = ["mypy"], version = "^1.7.4"}
+sib-api-v3-sdk = {extras = ["mypy"], version = "^7.6.0"}
+pydantic = {extras = ["email"], version = "^2.9.0"}
+python-multipart = "^0.0.9"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 
 
 [tool.poetry.group.dev.dependencies]
