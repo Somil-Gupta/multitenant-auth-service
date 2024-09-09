@@ -9,5 +9,5 @@
 
 - Run "docker compose up --build -d"
 - Docker compose command may change according to windows, wsl or mac so check the appropriate command
-- Test the APIs on Fastapi docs "http://localhost:8020/docs"
-
+- Test the APIs by importing the Multitenant-Auth.postman_collection.json into Postman
+- Or Test the APIs on Fastapi docs "http://localhost:8020/docs" 
