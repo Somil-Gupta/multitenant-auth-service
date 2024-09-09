@@ -4,28 +4,19 @@ from utils.password import get_password_hash
 from domain.crud_service import CrudService
 from utils.email import send_signup_invite_email, send_org_invite_email
 
-class CreateUserCaseDto(UseCaseDtoBase):
+class CreateOrgCaseDto(UseCaseDtoBase):
     def __init__(self, db, user, org):
         self.db = db
         self.user = user
         self.org = org
 
 
-class CreateUserCase(UseCaseBase):
-    def __init__(self, params: CreateUserCaseDto):
+class CreateOrgCase(UseCaseBase):
+    def __init__(self, params: CreateOrgCaseDto):
         super().__init__(params)
 
     def execute(self):
-        user_params = self.params.user
         org_params = self.params.org
-
-        db_user = models.User(
-            email=user_params.email,
-            password=user_params.password,
-            profile=user_params.profile,
-            status=user_params.status,
-            settings=user_params.settings,
-        )
 
         db_org = models.Organization(
             name=org_params.name,
@@ -33,11 +24,10 @@ class CreateUserCase(UseCaseBase):
             personal=org_params.personal,
             settings=org_params.settings,
         )
-        user_service = CrudService(self.params.db)
-        user = user_service.create_user(db_user)
-        _ = send_signup_invite_email(user.email)
-        org = user_service.create_organization(db_org)
-        role = user_service.get_role_by_name("owner")
+        crud_service = CrudService(self.params.db)        
+        org = crud_service.create_organization(db_org)
+        role = crud_service.get_role_by_name("owner")
+        user = self.params.user
         db_member = models.Member(
             org_id=org.id,
             user_id=user.id,
@@ -45,7 +35,7 @@ class CreateUserCase(UseCaseBase):
             status=0,
             settings={},
         )
-        _ = user_service.create_member(db_member)
+        _ = crud_service.create_member(db_member)
         _ = send_org_invite_email(user.email, org.name)
 
 

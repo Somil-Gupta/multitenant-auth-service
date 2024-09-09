@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from apis.members import members_schemas
-from domain.auth_service import get_current_active_user, get_current_admin_user
+from domain.auth_service import get_current_active_user
 from fastapi import APIRouter, Depends, status
 from infra.db import models
 from infra.db.database import get_db
@@ -17,7 +17,7 @@ def delete_member(
     org_id: int,
     user_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(get_current_admin_user)],
+    user: Annotated[models.User, Depends(get_current_active_user)],
 ):
     dto = DeleteMemberCaseDto(db, org_id, user_id)
     return DeleteMemberCase(dto).execute()
@@ -29,18 +29,18 @@ def update_member_role(
     user_id: int,
     role: members_schemas.UpdateRoleRequest,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(get_current_admin_user)],
+    user: Annotated[models.User, Depends(get_current_active_user)],
 ):
     dto = UpdateMemberRoleCaseDto(db, org_id, user_id, role.role_id)
     return UpdateMemberRoleCase(dto).execute()
 
 
-@router.post("/organziation/{org_id}", status_code=status.HTTP_201_CREATED)
+@router.post("/organziation/{org_id}/member", status_code=status.HTTP_201_CREATED)
 def invite_member(
     org_id: int,
     invite: members_schemas.InviteUserRequest,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(get_current_admin_user)],
+    user: Annotated[models.User, Depends(get_current_active_user)],
 ):
     dto = InviteMemberCaseDto(db, org_id, invite.email, invite.role)
     InviteMemberCase(dto).execute()

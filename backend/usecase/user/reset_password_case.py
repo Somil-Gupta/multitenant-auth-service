@@ -5,7 +5,7 @@ from infra.db import models
 from sqlalchemy.orm import Session
 from usecase.base.usecase_base import UseCaseBase, UseCaseDtoBase
 from utils.password import get_password_hash
-
+from utils.email import send_password_update_email
 
 class ResetPasswordCaseDto(UseCaseDtoBase):
     db: Session
@@ -36,12 +36,13 @@ class ResetPasswordCase(UseCaseBase):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="New password cannot be the same as the old password",
         )
-        if self.params.password.new_password != self.params.password.confirm_password:
+        if self.params.password.new_password != self.params.password.confirm_new_password:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Password and Confirm Password do not match",
         )
         crud_service.update_user_password(email, self.params.password.new_password)
+        _ = send_password_update_email(email)
         return None
 
 

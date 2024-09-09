@@ -1,8 +1,10 @@
 from datetime import datetime
 from typing import Optional
 
+from fastapi import HTTPException, status
 from infra.db import models
 from sqlalchemy import BigInteger, delete, func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from utils.password import get_password_hash
 from utils.time import datetime_to_epoch
@@ -20,23 +22,41 @@ class CrudService:
         self.db = db
 
     def create_user(self, user: models.User):
-        user.password = get_password_hash(password=user.password)
-        self.db.add(user)
-        self.db.flush()
-        self.db.refresh(user)
+        try:
+            user.password = get_password_hash(password=user.password)
+            self.db.add(user)
+            self.db.flush()
+            self.db.refresh(user)
+        except IntegrityError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="User with this email already exists",
+            )
         return user
 
     def create_organization(self, organization: models.Organization):
-        self.db.add(organization)
-        self.db.flush()
-        self.db.refresh(organization)
+        try:
+            self.db.add(organization)
+            self.db.flush()
+            self.db.refresh(organization)
+        except IntegrityError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Organization with same already exists",
+            )
         self.populate_roles(organization.id)
         return organization
 
     def create_member(self, member: models.Member):
-        self.db.add(member)
-        self.db.flush()
-        self.db.refresh(member)
+        try:
+            self.db.add(member)
+            self.db.flush()
+            self.db.refresh(member)
+        except IntegrityError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Member already exists",
+            )
         return member
 
     def create_role(self, role: models.Role):
@@ -80,17 +100,18 @@ class CrudService:
     def get_role_by_name(self, name: str):
         stmt = select(models.Role).where(models.Role.name == name)
         return self.db.scalars(stmt).first()
-    
+
     def get_role_by_id(self, role_id: int):
         stmt = select(models.Role).where(models.Role.id == role_id)
         return self.db.scalars(stmt).first()
 
-
     def populate_roles(self, org_id: int):
         for role in DEFAULT_ROLES:
-            existing_role = self.get_role_by_name(role['name'])
+            existing_role = self.get_role_by_name(role["name"])
             if not existing_role:
-                role_obj = models.Role(name=role["name"], description=role["description"], org_id=org_id)
+                role_obj = models.Role(
+                    name=role["name"], description=role["description"], org_id=org_id
+                )
                 self.create_role(role_obj)
 
     def get_user_by_email(self, email: str):
@@ -114,13 +135,16 @@ class CrudService:
         stmt = select(models.Organization).where(models.Organization.id == org_id)
         return self.db.scalars(stmt).first()
 
-    def get_members(self, org_id: int):
-        stmt = select(models.Member).where(models.Member.org_id == org_id)
-        return self.db.scalars(stmt).all()
+    # def get_members(self, org_id: int):
+    #     stmt = select(models.Member).where(models.Member.org_id == org_id)
+    #     return self.db.scalars(stmt).all()
 
-    def get_role_wise_member_count(self):
-        stmt = select(models.Member.role_id, func.count(models.Member.id)).group_by(
-            models.Member.role_id
+    def get_role_wise_member_count(self, org_id: int):
+
+        stmt = (
+            select(models.Member.role_id, func.count(models.Member.id))
+            .where(models.Member.org_id == org_id)
+            .group_by(models.Member.role_id)
         )
         return self.db.execute(stmt).fetchall()
 
@@ -145,22 +169,22 @@ class CrudService:
         return self.db.execute(stmt).fetchall()
 
     def get_org_wise_role_wise_member_count(
-        self, from_time: Optional[datetime]=None, to_time: Optional[datetime]=None
+        self, from_time: Optional[datetime] = None, to_time: Optional[datetime] = None
     ):
         stmt = select(
             models.Member.org_id, models.Member.role_id, func.count(models.Member.id)
         ).group_by(models.Member.org_id, models.Member.role_id)
         stmt = self.time_filter(stmt, from_time, to_time)
         return self.db.execute(stmt).fetchall()
-    
+
     def get_org_list(self):
         stmt = select(models.Organization)
         return self.db.scalars(stmt).all()
-    
+
     def get_org_members(self, org_id: int):
         stmt = select(models.Member).where(models.Member.org_id == org_id)
         return self.db.scalars(stmt).all()
-    
-    def get_role_list(self):
-        stmt = select(models.Role)
+
+    def get_role_list(self, org_id):
+        stmt = select(models.Role).where(models.Role.org_id == org_id)
         return self.db.scalars(stmt).all()

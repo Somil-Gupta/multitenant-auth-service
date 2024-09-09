@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 from usecase.base.usecase_base import UseCaseBase, UseCaseDtoBase
 from utils.password import get_password_hash
 from domain.auth_service import AuthService
+from utils.email import send_login_alert_email
 
 
 class SignInUserCaseDto(UseCaseDtoBase):
@@ -35,7 +36,8 @@ class SignInUserCase(UseCaseBase):
         user_data = {"sub": user.email}
         access_token = auth_service.create_access_token(data=user_data)
         refresh_token = auth_service.create_refresh_token(data=user_data)
-        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
-        
+        token_data =  {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+        _ = send_login_alert_email(user.email)
+        return token_data
 
 

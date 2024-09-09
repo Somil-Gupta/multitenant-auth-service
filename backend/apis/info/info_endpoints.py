@@ -1,7 +1,7 @@
 from typing import Annotated, List, Sequence
 
 from apis.info import info_schemas
-from domain.auth_service import get_current_active_user, get_current_admin_user
+from domain.auth_service import get_current_active_user
 from domain.crud_service import CrudService
 from fastapi import APIRouter, Depends, status
 from infra.db import models
@@ -24,17 +24,18 @@ def organization_list(
 def org_member_list(
     org_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[models.User, Depends(get_current_admin_user)],
+    user: Annotated[models.User, Depends(get_current_active_user)],
 ):
     crud_service = CrudService(db=db)
     return crud_service.get_org_members(org_id)
 
-@router.get("/roles")
+@router.get("/roles/{org_id}")
 def roles_list(
+    org_id: int,
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[models.User, Depends(get_current_active_user)],
 ):
     crud_service = CrudService(db=db)
-    return crud_service.get_role_list()
+    return crud_service.get_role_list(org_id=org_id)
 
 

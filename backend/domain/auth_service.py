@@ -57,7 +57,7 @@ class AuthService:
         encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
         return encoded_jwt
 
-auth_service = AuthService(get_db()) # type: ignore
+auth_service = AuthService(next(get_db())) 
 
 async def get_current_user(token): #: Annotated[str, Depends(oauth2_scheme)]):
     credentials_exception = HTTPException(
@@ -80,12 +80,13 @@ async def get_current_active_user(
     current_user: Annotated[models.User, Depends(get_current_user)],
 ):
     if not current_user.status:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user. Please Verify your details")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user. Please Verify your details via email link")
     return current_user
 
-async def get_current_admin_user( 
-    current_user: Annotated[models.User, Depends(get_current_user)],
-):
-    if not current_user.profile.get("owner"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not an owner")
-    return current_user
+# async def get_current_admin_member(
+#     org_id: int,
+#     current_user: Annotated[models.User, Depends(get_current_user)],
+# ):
+#     if not current_user.profile.get("owner"):
+#         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not an owner")
+#     return current_user

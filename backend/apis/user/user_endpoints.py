@@ -1,7 +1,9 @@
+import stat
 from typing import Annotated
 
 from apis.user import user_schemas
-from domain.auth_service import get_current_active_user
+from domain.auth_service import get_current_active_user, get_current_user
+from domain.crud_service import CrudService
 from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from infra.db import models
@@ -10,6 +12,7 @@ from sqlalchemy.orm import Session
 from usecase.user.create_user_case import CreateUserCase, CreateUserCaseDto
 from usecase.user.reset_password_case import ResetPasswordCase, ResetPasswordCaseDto
 from usecase.user.signin_user_case import SignInUserCase, SignInUserCaseDto
+from usecase.user.create_organization_case import CreateOrgCase, CreateOrgCaseDto
 
 
 router = APIRouter(tags=["user"])
@@ -23,7 +26,7 @@ def signup(
 ):
     dto = CreateUserCaseDto(db, user, org)
     CreateUserCase(dto).execute()
-    return {"message": "User created. Please Verify the email to activate the account."}
+    return {"message": "User created and Organization. Please Verify the email to activate the account."}
 
 
 @router.post(
@@ -46,3 +49,22 @@ def reset_password(
 ):
     dto = ResetPasswordCaseDto(db, user, password)
     return ResetPasswordCase(dto).execute()
+
+@router.get("/invite-verify", status_code=status.HTTP_200_OK)
+def update_status(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[models.User, Depends(get_current_user)],
+):
+    crud_service = CrudService(db)
+    crud_service.update_status(user.id, 1)
+    return {"message": f"User {user.email} is now Verified"}
+
+@router.post("/organzation", status_code=status.HTTP_201_CREATED)
+def create_organization(
+    org: user_schemas.OrganisationCreateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[models.User, Depends(get_current_user)],
+):
+    dto = CreateOrgCaseDto(db, user=user, org=org)
+    CreateOrgCase(dto).execute()
+    return {"message": f"New Organization {org.name} with {user.email} as an admin"}

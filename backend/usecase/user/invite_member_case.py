@@ -3,6 +3,7 @@ from fastapi import HTTPException, status
 from infra.db import models
 from usecase.base.usecase_base import UseCaseBase, UseCaseDtoBase
 from utils.password import generate_password
+from utils.email import send_signup_invite_email, send_org_invite_email
 
 
 class InviteMemberCaseDto(UseCaseDtoBase):
@@ -29,8 +30,10 @@ class InviteMemberCase(UseCaseBase):
         user = crud_service.get_user_by_email(email=self.params.email)
 
         if not user:
-            db_user = models.User(email=self.params.email, password=generate_password(), status=1)
+            generated_password = generate_password()
+            db_user = models.User(email=self.params.email, password=generated_password, status=1)
             user = crud_service.create_user(db_user)
+            _ = send_signup_invite_email(user.email, generated_password)
 
         role = crud_service.get_role_by_name(name=self.params.role)
         if not role:
@@ -55,4 +58,5 @@ class InviteMemberCase(UseCaseBase):
             settings={},
         )
         _ = crud_service.create_member(db_member)
+        _ = send_org_invite_email(user.email, org.name)
         return None
