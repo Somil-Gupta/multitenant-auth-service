@@ -5,6 +5,7 @@ from sib_api_v3_sdk.rest import ApiException # type: ignore
 from domain.auth_service import AuthService
 from infra.db.database import get_db
 from infra.db.models import MailQueue
+from celery.exceptions import MaxRetriesExceededError
 
 import redis
 from celery import Celery
@@ -29,18 +30,28 @@ api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(co
 def get_fresh_db_session():
     return next(get_db())
 
-@celery.task
-def process_email(email_to: str, subject: str, content: str):
+@celery.task(bind=True, max_retries=3, default_retry_delay=60)  # max_retries limits to 3 retries, retry every 60 seconds
+def process_email(self, email_to: str, subject: str, content: str):
     db = get_fresh_db_session()
     try:
+        # Try sending the email
         send_email(subject=subject, email_to=email_to, content=content)
+        # Update the MailQueue entry to "sent"
         mail_entry = db.query(MailQueue).filter(MailQueue.message_id == email_to).first()
         if mail_entry:
             mail_entry.status = "sent"
             db.commit()
-    except Exception as e:
-        mail_entry = db.query(MailQueue).filter(MailQueue.message_id == email_to).first()
-        if mail_entry:
+    except Exception as exc:
+        # On failure, retry the task
+        try:
+            mail_entry = db.query(MailQueue).filter(MailQueue.message_id == email_to).first()
+            if mail_entry:
+                mail_entry.status = "failed"
+                db.commit()
+            # Retry the task
+            raise self.retry(exc=exc)
+        except MaxRetriesExceededError:
+            # Handle case where retries are exhausted
             mail_entry.status = "failed"
             db.commit()
     finally:
