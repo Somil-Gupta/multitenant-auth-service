@@ -45,4 +45,3 @@ def invite_member(
     dto = InviteMemberCaseDto(db, org_id, invite.email, invite.role)
     InviteMemberCase(dto).execute()
     return {"message": f"Member created. Invite Link sent at {invite.email}"}
-
