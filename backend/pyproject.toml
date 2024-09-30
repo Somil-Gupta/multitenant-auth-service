@@ -20,6 +20,8 @@ sib-api-v3-sdk = {extras = ["mypy"], version = "^7.6.0"}
 pydantic = {extras = ["email"], version = "^2.9.0"}
 python-multipart = "^0.0.9"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+celery = "^5.4.0"
+redis = "^5.1.0"
 
 
 [tool.poetry.group.dev.dependencies]

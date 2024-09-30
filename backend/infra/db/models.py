@@ -46,6 +46,9 @@ class User(BaseModel):
     status: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     settings: Mapped[dict] = mapped_column(JSON, nullable=True, default={})
 
+    emails: Mapped[List["MailQueue"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
     memberships: Mapped[List["Member"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -62,7 +65,7 @@ class Role(BaseModel):
     )
     organization: Mapped["Organization"] = relationship(back_populates="roles")
 
-    members: Mapped[list["Member"]] = relationship(
+    members: Mapped[List["Member"]] = relationship(
         "Member", back_populates="role", cascade="all, delete-orphan"
     )
 
@@ -86,3 +89,12 @@ class Member(BaseModel):
     organization: Mapped["Organization"] = relationship(back_populates="members")
     user: Mapped["User"] = relationship(back_populates="memberships")
     role: Mapped["Role"] = relationship(back_populates="members")
+
+
+class MailQueue(BaseModel):
+    __tablename__ = "mail_queue"
+    message_id: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    
+    user: Mapped["User"] = relationship(back_populates="emails")

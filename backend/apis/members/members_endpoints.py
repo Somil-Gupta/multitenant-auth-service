@@ -45,3 +45,15 @@ def invite_member(
     dto = InviteMemberCaseDto(db, org_id, invite.email, invite.role)
     InviteMemberCase(dto).execute()
     return {"message": f"Member created. Invite Link sent at {invite.email}"}
+
+
+@router.post("/queue_emai", status_code=status.HTTP_201_CREATED)
+async def queue_email(
+    email_data: SignupInviteEmail,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[models.User, Depends(get_current_active_user)],
+):
+    if not user:
+        return {"error": "User not found"}
+    return 
+
