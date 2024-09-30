@@ -34,9 +34,7 @@ def get_fresh_db_session():
 def process_email(self, email_to: str, subject: str, content: str):
     db = get_fresh_db_session()
     try:
-        # Try sending the email
         send_email(subject=subject, email_to=email_to, content=content)
-        # Update the MailQueue entry to "sent"
         mail_entry = db.query(MailQueue).filter(MailQueue.message_id == email_to).first()
         if mail_entry:
             mail_entry.status = "sent"
